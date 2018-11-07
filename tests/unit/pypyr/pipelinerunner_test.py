@@ -1,12 +1,13 @@
 """pipelinerunner.py unit tests."""
 import os
+
+from asynctest import call, mock_open, patch
 from pypyr.context import Context
 from pypyr.errors import (ContextError,
                           KeyNotInContextError,
                           PyModuleNotFoundError)
 import pypyr.pipelinerunner
 import pytest
-from unittest.mock import call, mock_open, patch
 
 
 # ------------------------- parser mocks -------------------------------------#
@@ -20,12 +21,14 @@ def mock_parser(context_arg):
 def mock_parser_none(context_arg):
     """Return None, mocking get_parsed_context"""
     return None
+
+
 # ------------------------- parser mocks -------------------------------------#
 
 # ------------------------- get_parsed_context--------------------------------#
 
-
-def test_get_parsed_context_no_parser():
+@pytest.mark.asyncio
+async def test_get_parsed_context_no_parser():
     """get_parsed_context returns empty Context when no parser specified."""
     context = pypyr.pipelinerunner.get_parsed_context({}, None)
 
@@ -33,7 +36,8 @@ def test_get_parsed_context_no_parser():
     assert len(context) == 0
 
 
-def test_get_parsed_context_parser_not_found():
+@pytest.mark.asyncio
+async def test_get_parsed_context_parser_not_found():
     """get_parsed_context raises if parser module specified but not found."""
     with pytest.raises(PyModuleNotFoundError):
         pypyr.pipelinerunner.get_parsed_context(
@@ -41,7 +45,8 @@ def test_get_parsed_context_parser_not_found():
 
 
 @patch('pypyr.moduleloader.get_module')
-def test_get_parsed_context_parser_returns_none(mocked_moduleloader):
+@pytest.mark.asyncio
+async def test_get_parsed_context_parser_returns_none(mocked_moduleloader):
     """get_parsed_context returns empty Context when parser returns None."""
     mocked_moduleloader.return_value.get_parsed_context = mock_parser_none
 
@@ -55,7 +60,8 @@ def test_get_parsed_context_parser_returns_none(mocked_moduleloader):
 
 
 @patch('pypyr.moduleloader.get_module')
-def test_get_parsed_context_parser_pass(mocked_moduleloader):
+@pytest.mark.asyncio
+async def test_get_parsed_context_parser_pass(mocked_moduleloader):
     """get_parsed_context passes arg param and returns context."""
     mocked_moduleloader.return_value.get_parsed_context = mock_parser
 
@@ -66,12 +72,13 @@ def test_get_parsed_context_parser_pass(mocked_moduleloader):
 
     assert isinstance(context, Context)
     assert len(context) == 2
-    context['key1'] == 'created in mock parser'
-    context['key2'] == 'in arg here'
+    assert context['key1'] == 'created in mock parser'
+    assert context['key2'] == 'in arg here'
 
 
 @patch('pypyr.moduleloader.get_module', return_value=3)
-def test_get_parser_context_signature_wrong(mocked_moduleloader):
+@pytest.mark.asyncio
+async def test_get_parser_context_signature_wrong(mocked_moduleloader):
     """Raise when parser found but no get_parsed_context attr."""
     with pytest.raises(AttributeError) as err_info:
         pypyr.pipelinerunner.get_parsed_context(
@@ -80,6 +87,7 @@ def test_get_parser_context_signature_wrong(mocked_moduleloader):
     assert str(err_info.value) == ("'int' object has no attribute "
                                    "'get_parsed_context'")
 
+
 # ------------------------- get_parsed_context--------------------------------#
 
 # ------------------------- get_pipeline_definition --------------------------#
@@ -87,8 +95,9 @@ def test_get_parser_context_signature_wrong(mocked_moduleloader):
 
 @patch('ruamel.yaml.YAML.load', return_value='mocked pipeline def')
 @patch('pypyr.moduleloader.get_pipeline_path', return_value='arb/path/x.yaml')
-def test_get_pipeline_definition_pass(mocked_get_path,
-                                      mocked_yaml):
+@pytest.mark.asyncio
+async def test_get_pipeline_definition_pass(mocked_get_path,
+                                            mocked_yaml):
     """get_pipeline_definition passes correct params to all methods."""
     with patch('pypyr.pipelinerunner.open',
                mock_open(read_data='pipe contents')) as mocked_open:
@@ -103,7 +112,8 @@ def test_get_pipeline_definition_pass(mocked_get_path,
 
 
 @patch('pypyr.moduleloader.get_pipeline_path', return_value='arb/path/x.yaml')
-def test_get_pipeline_definition_file_not_found(mocked_get_path):
+@pytest.mark.asyncio
+async def test_get_pipeline_definition_file_not_found(mocked_get_path):
     """get_pipeline_definition raises file not found."""
     with patch('pypyr.pipelinerunner.open',
                mock_open(read_data='pipe contents')) as mocked_open:
@@ -111,6 +121,7 @@ def test_get_pipeline_definition_file_not_found(mocked_get_path):
         with pytest.raises(FileNotFoundError):
             pypyr.pipelinerunner.get_pipeline_definition(
                 'pipename', '/working/dir')
+
 
 # ------------------------- get_pipeline_definition --------------------------#
 
@@ -155,6 +166,7 @@ def test_main_fail(mocked_work_dir, mocked_run_pipeline):
         pipeline_context_input='arb context input',
         working_dir='arb/dir')
 
+
 # ------------------------- main ---------------------------------------------#
 
 # ------------------------- prepare_context - --------------------------------#
@@ -162,7 +174,8 @@ def test_main_fail(mocked_work_dir, mocked_run_pipeline):
 
 @patch('pypyr.pipelinerunner.get_parsed_context',
        return_value=Context())
-def test_prepare_context_empty_parse(mocked_get_parsed_context):
+@pytest.mark.asyncio
+async def test_prepare_context_empty_parse(mocked_get_parsed_context):
     """Empty parsed_context works."""
     context = Context({'c1': 'cv1', 'c2': 'cv2'})
     pypyr.pipelinerunner.prepare_context(pipeline='pipe def',
@@ -178,7 +191,8 @@ def test_prepare_context_empty_parse(mocked_get_parsed_context):
 
 @patch('pypyr.pipelinerunner.get_parsed_context',
        return_value=Context({'a': 'av1', 'c1': 'new value from parsed'}))
-def test_prepare_context_with_parse_merge(mocked_get_parsed_context):
+@pytest.mark.asyncio
+async def test_prepare_context_with_parse_merge(mocked_get_parsed_context):
     """parsed_context overrides context."""
     context = Context({'c1': 'cv1', 'c2': 'cv2'})
     pypyr.pipelinerunner.prepare_context(pipeline='pipe def',
@@ -190,6 +204,8 @@ def test_prepare_context_with_parse_merge(mocked_get_parsed_context):
         context_in_string='arb context input')
 
     assert context == {'a': 'av1', 'c1': 'new value from parsed', 'c2': 'cv2'}
+
+
 # ------------------------- prepare_context - --------------------------------#
 
 # ------------------------- run_pipeline -------------------------------------#
@@ -200,15 +216,16 @@ def test_prepare_context_with_parse_merge(mocked_get_parsed_context):
        return_value=Context())
 @patch('pypyr.pipelinerunner.get_pipeline_definition', return_value='pipe def')
 @patch('pypyr.moduleloader.set_working_directory')
-def test_load_and_run_pipeline_pass(mocked_work_dir,
-                                    mocked_get_pipe_def,
-                                    mocked_get_parsed_context,
-                                    mocked_run_step_group):
+@pytest.mark.asyncio
+async def test_load_and_run_pipeline_pass(mocked_work_dir,
+                                          mocked_get_pipe_def,
+                                          mocked_get_parsed_context,
+                                          mocked_run_step_group):
     """run_pipeline passes correct params to all methods."""
 
     with patch('pypyr.context.Context') as mock_context:
         mock_context.return_value = Context()
-        pypyr.pipelinerunner.load_and_run_pipeline(
+        await pypyr.pipelinerunner.load_and_run_pipeline(
             pipeline_name='arb pipe',
             pipeline_context_input='arb context input',
             working_dir='arb/dir')
@@ -239,14 +256,15 @@ def test_load_and_run_pipeline_pass(mocked_work_dir,
        return_value=Context())
 @patch('pypyr.pipelinerunner.get_pipeline_definition', return_value='pipe def')
 @patch('pypyr.moduleloader.set_working_directory')
-def test_load_and_run_pipeline_pass_skip_parse_context(
+@pytest.mark.asyncio
+async def test_load_and_run_pipeline_pass_skip_parse_context(
         mocked_work_dir,
         mocked_get_pipe_def,
         mocked_get_parsed_context,
         mocked_run_step_group):
     """run_pipeline passes correct params to all methods."""
 
-    pypyr.pipelinerunner.load_and_run_pipeline(
+    await pypyr.pipelinerunner.load_and_run_pipeline(
         pipeline_name='arb pipe',
         working_dir='arb/dir',
         parse_input=False)
@@ -271,7 +289,8 @@ def test_load_and_run_pipeline_pass_skip_parse_context(
 @patch('pypyr.pipelinerunner.get_parsed_context')
 @patch('pypyr.pipelinerunner.get_pipeline_definition', return_value='pipe def')
 @patch('pypyr.moduleloader.set_working_directory')
-def test_load_and_run_pipeline_parse_context_error(
+@pytest.mark.asyncio
+async def test_load_and_run_pipeline_parse_context_error(
         mocked_work_dir,
         mocked_get_pipe_def,
         mocked_get_parsed_context,
@@ -280,7 +299,7 @@ def test_load_and_run_pipeline_parse_context_error(
     mocked_get_parsed_context.side_effect = ContextError
 
     with pytest.raises(ContextError):
-        pypyr.pipelinerunner.load_and_run_pipeline(
+        await pypyr.pipelinerunner.load_and_run_pipeline(
             pipeline_name='arb pipe',
             pipeline_context_input='arb context input',
             working_dir='arb/dir')
@@ -309,17 +328,18 @@ def test_load_and_run_pipeline_parse_context_error(
        return_value=Context({'c1': 'cv1'}))
 @patch('pypyr.pipelinerunner.get_pipeline_definition', return_value='pipe def')
 @patch('pypyr.moduleloader.set_working_directory')
-def test_load_and_run_pipeline_steps_error(mocked_work_dir,
-                                           mocked_get_pipe_def,
-                                           mocked_get_parsed_context,
-                                           mocked_run_step_group):
+@pytest.mark.asyncio
+async def test_load_and_run_pipeline_steps_error(mocked_work_dir,
+                                                 mocked_get_pipe_def,
+                                                 mocked_get_parsed_context,
+                                                 mocked_run_step_group):
     """run_pipeline runs on_failure if steps group fails."""
     # First time it runs is steps - give a KeyNotInContextError. After that it
     # runs again to process the failure condition - thus None.
     mocked_run_step_group.side_effect = [KeyNotInContextError, None]
 
     with pytest.raises(KeyNotInContextError):
-        pypyr.pipelinerunner.load_and_run_pipeline(
+        await pypyr.pipelinerunner.load_and_run_pipeline(
             pipeline_name='arb pipe',
             pipeline_context_input='arb context input',
             working_dir='arb/dir')
@@ -348,7 +368,8 @@ def test_load_and_run_pipeline_steps_error(mocked_work_dir,
        return_value=Context())
 @patch('pypyr.pipelinerunner.get_pipeline_definition', return_value='pipe def')
 @patch('pypyr.moduleloader.set_working_directory')
-def test_load_and_run_pipeline_steps_error_no_context(
+@pytest.mark.asyncio
+async def test_load_and_run_pipeline_steps_error_no_context(
         mocked_work_dir,
         mocked_get_pipe_def,
         mocked_get_parsed_context,
@@ -359,7 +380,7 @@ def test_load_and_run_pipeline_steps_error_no_context(
     mocked_run_step_group.side_effect = [KeyNotInContextError, None]
 
     with pytest.raises(KeyNotInContextError):
-        pypyr.pipelinerunner.load_and_run_pipeline(
+        await pypyr.pipelinerunner.load_and_run_pipeline(
             pipeline_name='arb pipe',
             pipeline_context_input='arb context input',
             working_dir='arb/dir')
@@ -388,7 +409,8 @@ def test_load_and_run_pipeline_steps_error_no_context(
        return_value=Context({'1': 'context 1', '2': 'context2'}))
 @patch('pypyr.pipelinerunner.get_pipeline_definition', return_value='pipe def')
 @patch('pypyr.moduleloader.set_working_directory')
-def test_load_and_run_pipeline_with_existing_context_pass(
+@pytest.mark.asyncio
+async def test_load_and_run_pipeline_with_existing_context_pass(
         mocked_work_dir,
         mocked_get_pipe_def,
         mocked_get_parsed_context,
@@ -398,7 +420,7 @@ def test_load_and_run_pipeline_with_existing_context_pass(
     existing_context = Context({'2': 'original', '3': 'new'})
     existing_context.working_dir = 'from/context'
 
-    pypyr.pipelinerunner.load_and_run_pipeline(
+    await pypyr.pipelinerunner.load_and_run_pipeline(
         pipeline_name='arb pipe',
         pipeline_context_input='arb context input',
         working_dir='arb/dir',
@@ -418,11 +440,12 @@ def test_load_and_run_pipeline_with_existing_context_pass(
         pipeline_definition='pipe def',
         step_group_name='steps'),
         call(
-        context={'1': 'context 1', '2': 'context2', '3': 'new'},
-        pipeline_definition='pipe def',
-        step_group_name='on_success')]
+            context={'1': 'context 1', '2': 'context2', '3': 'new'},
+            pipeline_definition='pipe def',
+            step_group_name='on_success')]
 
     mocked_run_step_group.assert_has_calls(expected_run_step_groups)
+
 
 # ------------------------- run_pipeline -------------------------------------#
 

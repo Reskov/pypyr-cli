@@ -1,5 +1,5 @@
 """Utility functions for polling."""
-import time
+import asyncio
 import logging
 
 # pypyr logger means the log level will be set correctly and output formatted.
@@ -29,17 +29,17 @@ def wait_until_true(interval, max_attempts):
     def decorator(f):
         logger.debug("started")
 
-        def sleep_looper(*args, **kwargs):
+        async def sleep_looper(*args, **kwargs):
             logger.debug(f"Looping every {interval} seconds for "
                          f"{max_attempts} attempts")
             for i in range(1, max_attempts + 1):
-                result = f(*args, **kwargs)
+                result = await f(*args, **kwargs)
                 if result:
                     logger.debug(f"iteration {i}. Desired state reached.")
                     return True
                 if i < max_attempts:
                     logger.debug(f"iteration {i}. Still waiting. . .")
-                    time.sleep(interval)
+                    await asyncio.sleep(interval)
             logger.debug("done")
             return False
         return sleep_looper
@@ -79,7 +79,7 @@ def while_until_true(interval, max_attempts):
     def decorator(f):
         logger.debug("started")
 
-        def sleep_looper(*args, **kwargs):
+        async def sleep_looper(*args, **kwargs):
             if max_attempts:
                 logger.debug(f"Looping every {interval} seconds for "
                              f"{max_attempts} attempts")
@@ -94,14 +94,14 @@ def while_until_true(interval, max_attempts):
             # branch partial. unit test cov is 100%, though.
             while not result:  # pragma: no branch
                 i += 1
-                result = f(i, *args, **kwargs)
+                result = await f(i, *args, **kwargs)
                 if result:
                     logger.debug(f"iteration {i}. Desired state reached.")
                     break
                 elif max_attempts:
                     if i < max_attempts:
                         logger.debug(f"iteration {i}. Still waiting. . .")
-                        time.sleep(interval)
+                        await asyncio.sleep(interval)
                     else:
                         logger.debug(f"iteration {i}. Max attempts exhausted.")
                         break
@@ -109,7 +109,7 @@ def while_until_true(interval, max_attempts):
                     # result False AND max_attempts is None means keep looping
                     # because None = infinite
                     logger.debug(f"iteration {i}. Still waiting. . .")
-                    time.sleep(interval)
+                    await asyncio.sleep(interval)
             logger.debug("done")
             return result
 

@@ -7,7 +7,7 @@ import pypyr.pipelinerunner as pipelinerunner
 logger = logging.getLogger(__name__)
 
 
-def run_step(context):
+async def run_step(context):
     """Run another pipeline from this step.
 
     The parent pipeline is the current, executing pipeline. The invoked, or
@@ -54,14 +54,14 @@ def run_step(context):
     try:
         if use_parent_context:
             logger.info(f"pyping {pipeline_name}, using parent context.")
-            pipelinerunner.load_and_run_pipeline(
+            await pipelinerunner.load_and_run_pipeline(
                 pipeline_name=pipeline_name,
                 pipeline_context_input=pipe_arg,
                 context=context,
                 parse_input=not skip_parse)
         else:
             logger.info(f"pyping {pipeline_name}, without parent context.")
-            pipelinerunner.load_and_run_pipeline(
+            await pipelinerunner.load_and_run_pipeline(
                 pipeline_name=pipeline_name,
                 pipeline_context_input=pipe_arg,
                 working_dir=context.working_dir,

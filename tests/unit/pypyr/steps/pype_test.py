@@ -1,15 +1,18 @@
 """tar.py unit tests."""
 import logging
 import pytest
-from unittest.mock import call, patch
+
+from asynctest.mock import call, patch
 from pypyr.context import Context
 from pypyr.errors import KeyInContextHasNoValueError, KeyNotInContextError
 import pypyr.steps.pype as pype
 
+pytestmark = pytest.mark.asyncio
+
 # ------------------------ get_arguments --------------------------------------
 
 
-def test_pype_get_arguments_all():
+async def test_pype_get_arguments_all():
     """Parse all input from context."""
     context = Context({
         'pype': {
@@ -33,7 +36,7 @@ def test_pype_get_arguments_all():
     assert raise_error == 'raise err'
 
 
-def test_pype_get_arguments_defaults():
+async def test_pype_get_arguments_defaults():
     """Parse all input from context and assign defaults where not specified."""
     context = Context({
         'pype': {
@@ -56,7 +59,7 @@ def test_pype_get_arguments_defaults():
     assert isinstance(raise_error, bool)
 
 
-def test_pype_get_arguments_missing_pype():
+async def test_pype_get_arguments_missing_pype():
     """Missing pype throw."""
     context = Context()
 
@@ -68,7 +71,7 @@ def test_pype_get_arguments_missing_pype():
                                    "pypyr.steps.pype.")
 
 
-def test_pype_get_arguments_missing_name():
+async def test_pype_get_arguments_missing_name():
     """Missing pype name throw."""
     context = Context({'pype': {}})
 
@@ -81,7 +84,7 @@ def test_pype_get_arguments_missing_name():
         "pipeline.")
 
 
-def test_pype_get_arguments_name_empty():
+async def test_pype_get_arguments_name_empty():
     """Empty pype name throw."""
     context = Context({'pype': {'name': None}})
 
@@ -90,13 +93,15 @@ def test_pype_get_arguments_name_empty():
 
     assert str(err_info.value) == ("pypyr.steps.pype ['pype']['name'] exists "
                                    "but is empty.")
+
+
 # ------------------------ get_arguments --------------------------------------
 
 # ------------------------ run_step -------------------------------------------
 
 
 @patch('pypyr.pipelinerunner.load_and_run_pipeline')
-def test_pype_use_parent_context(mock_run_pipeline):
+async def test_pype_use_parent_context(mock_run_pipeline):
     """pype use_parent_context True."""
     context = Context({
         'pype': {
@@ -110,7 +115,7 @@ def test_pype_use_parent_context(mock_run_pipeline):
 
     logger = logging.getLogger('pypyr.steps.pype')
     with patch.object(logger, 'info') as mock_logger_info:
-        pype.run_step(context)
+        await pype.run_step(context)
 
     mock_run_pipeline.assert_called_once_with(
         pipeline_name='pipe name',
@@ -124,7 +129,7 @@ def test_pype_use_parent_context(mock_run_pipeline):
 
 
 @patch('pypyr.pipelinerunner.load_and_run_pipeline')
-def test_pype_no_parent_context(mock_run_pipeline):
+async def test_pype_no_parent_context(mock_run_pipeline):
     """pype use_parent_context False."""
     context = Context({
         'pype': {
@@ -139,7 +144,7 @@ def test_pype_no_parent_context(mock_run_pipeline):
 
     logger = logging.getLogger('pypyr.steps.pype')
     with patch.object(logger, 'info') as mock_logger_info:
-        pype.run_step(context)
+        await pype.run_step(context)
 
     mock_run_pipeline.assert_called_once_with(
         pipeline_name='pipe name',
@@ -153,7 +158,7 @@ def test_pype_no_parent_context(mock_run_pipeline):
 
 
 @patch('pypyr.pipelinerunner.load_and_run_pipeline')
-def test_pype_no_skip_parse(mock_run_pipeline):
+async def test_pype_no_skip_parse(mock_run_pipeline):
     """pype use_parent_context False."""
     context = Context({
         'pype': {
@@ -168,7 +173,7 @@ def test_pype_no_skip_parse(mock_run_pipeline):
 
     logger = logging.getLogger('pypyr.steps.pype')
     with patch.object(logger, 'info') as mock_logger_info:
-        pype.run_step(context)
+        await pype.run_step(context)
 
     mock_run_pipeline.assert_called_once_with(
         pipeline_name='pipe name',
@@ -182,7 +187,7 @@ def test_pype_no_skip_parse(mock_run_pipeline):
 
 
 @patch('pypyr.pipelinerunner.load_and_run_pipeline')
-def test_pype_no_pipe_arg(mock_run_pipeline):
+async def test_pype_no_pipe_arg(mock_run_pipeline):
     """pype use_parent_context False."""
     context = Context({
         'pype': {
@@ -197,7 +202,7 @@ def test_pype_no_pipe_arg(mock_run_pipeline):
 
     logger = logging.getLogger('pypyr.steps.pype')
     with patch.object(logger, 'info') as mock_logger_info:
-        pype.run_step(context)
+        await pype.run_step(context)
 
     mock_run_pipeline.assert_called_once_with(
         pipeline_name='pipe name',
@@ -212,7 +217,7 @@ def test_pype_no_pipe_arg(mock_run_pipeline):
 
 @patch('pypyr.pipelinerunner.load_and_run_pipeline',
        side_effect=RuntimeError('whoops'))
-def test_pype_use_parent_context_no_swallow(mock_run_pipeline):
+async def test_pype_use_parent_context_no_swallow(mock_run_pipeline):
     """pype without swallowing error in child pipeline."""
     context = Context({
         'pype': {
@@ -227,7 +232,7 @@ def test_pype_use_parent_context_no_swallow(mock_run_pipeline):
     logger = logging.getLogger('pypyr.steps.pype')
     with patch.object(logger, 'error') as mock_logger_error:
         with pytest.raises(RuntimeError) as err_info:
-            pype.run_step(context)
+            await pype.run_step(context)
 
         assert str(err_info.value) == "whoops"
 
@@ -243,7 +248,7 @@ def test_pype_use_parent_context_no_swallow(mock_run_pipeline):
 
 @patch('pypyr.pipelinerunner.load_and_run_pipeline',
        side_effect=RuntimeError('whoops'))
-def test_pype_use_parent_context_with_swallow(mock_run_pipeline):
+async def test_pype_use_parent_context_with_swallow(mock_run_pipeline):
     """pype swallowing error in child pipeline."""
     context = Context({
         'pype': {
@@ -257,7 +262,7 @@ def test_pype_use_parent_context_with_swallow(mock_run_pipeline):
 
     logger = logging.getLogger('pypyr.steps.pype')
     with patch.object(logger, 'error') as mock_logger_error:
-        pype.run_step(context)
+        await pype.run_step(context)
 
     mock_run_pipeline.assert_called_once_with(
         pipeline_name='pipe name',

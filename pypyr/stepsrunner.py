@@ -47,7 +47,7 @@ def get_pipeline_steps(pipeline, steps_group):
         return None
 
 
-def run_failure_step_group(pipeline, context):
+async def run_failure_step_group(pipeline, context):
     """Run the on_failure step group if it exists.
 
     This function will swallow all errors, to prevent obfuscating the error
@@ -57,9 +57,9 @@ def run_failure_step_group(pipeline, context):
     try:
         assert pipeline
         # if no on_failure exists, it'll do nothing.
-        run_step_group(pipeline_definition=pipeline,
-                       step_group_name='on_failure',
-                       context=context)
+        await run_step_group(pipeline_definition=pipeline,
+                             step_group_name='on_failure',
+                             context=context)
     except Exception as exception:
         logger.error("Failure handler also failed. Swallowing.")
         logger.error(exception)
@@ -67,7 +67,7 @@ def run_failure_step_group(pipeline, context):
     logger.debug("done")
 
 
-def run_pipeline_steps(steps, context):
+async def run_pipeline_steps(steps, context):
     """Run the run_step(context) method of each step in steps.
 
     Args:
@@ -85,7 +85,7 @@ def run_pipeline_steps(steps, context):
 
         for step in steps:
             step_instance = Step(step)
-            step_instance.run_step(context)
+            await step_instance.run_step(context)
             step_count += 1
 
         logger.debug(f"executed {step_count} steps")
@@ -93,7 +93,7 @@ def run_pipeline_steps(steps, context):
     logger.debug("done")
 
 
-def run_step_group(pipeline_definition, step_group_name, context):
+async def run_step_group(pipeline_definition, step_group_name, context):
     """Get the specified step group from the pipeline and run its steps."""
     logger.debug(f"starting {step_group_name}")
     assert step_group_name
@@ -101,6 +101,6 @@ def run_step_group(pipeline_definition, step_group_name, context):
     steps = get_pipeline_steps(pipeline=pipeline_definition,
                                steps_group=step_group_name)
 
-    run_pipeline_steps(steps=steps, context=context)
+    await run_pipeline_steps(steps=steps, context=context)
 
     logger.debug(f"done {step_group_name}")

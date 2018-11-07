@@ -4,6 +4,7 @@ Runs the pipeline specified by the input pipeline_name parameter.
 Pipelines must have a "steps" list-like attribute.
 """
 import logging
+
 import pypyr.context
 import pypyr.log.logger
 import pypyr.moduleloader
@@ -11,6 +12,8 @@ import pypyr.stepsrunner
 import ruamel.yaml as yaml
 
 # use pypyr logger to ensure loglevel is set correctly
+from pypyr.utils.compat import async_run
+
 logger = logging.getLogger(__name__)
 
 
@@ -110,11 +113,11 @@ def get_pipeline_definition(pipeline_name, working_dir):
 
 
 def main(
-    pipeline_name,
-    pipeline_context_input,
-    working_dir,
-    log_level,
-    log_path,
+        pipeline_name,
+        pipeline_context_input,
+        working_dir,
+        log_level,
+        log_path,
 ):
     """Entry point for pypyr pipeline runner.
 
@@ -144,9 +147,11 @@ def main(
     # without needing to pip install a package 1st.
     pypyr.moduleloader.set_working_directory(working_dir)
 
-    load_and_run_pipeline(pipeline_name=pipeline_name,
-                          pipeline_context_input=pipeline_context_input,
-                          working_dir=working_dir)
+    async_run(
+        load_and_run_pipeline(pipeline_name=pipeline_name,
+                              pipeline_context_input=pipeline_context_input,
+                              working_dir=working_dir)
+    )
 
     logger.debug("pypyr done")
 
@@ -175,11 +180,11 @@ def prepare_context(pipeline, context_in_string, context):
     logger.debug("done")
 
 
-def load_and_run_pipeline(pipeline_name,
-                          pipeline_context_input=None,
-                          working_dir=None,
-                          context=None,
-                          parse_input=True):
+async def load_and_run_pipeline(pipeline_name,
+                                pipeline_context_input=None,
+                                working_dir=None,
+                                context=None,
+                                parse_input=True):
     """Load and run the specified pypyr pipeline.
 
     This function runs the actual pipeline by name. If you are running another
@@ -223,7 +228,7 @@ def load_and_run_pipeline(pipeline_name,
     pipeline_definition = get_pipeline_definition(pipeline_name=pipeline_name,
                                                   working_dir=working_dir)
 
-    run_pipeline(
+    await run_pipeline(
         pipeline=pipeline_definition,
         pipeline_context_input=pipeline_context_input,
         context=context,
@@ -231,10 +236,10 @@ def load_and_run_pipeline(pipeline_name,
     )
 
 
-def run_pipeline(pipeline,
-                 context,
-                 pipeline_context_input=None,
-                 parse_input=True):
+async def run_pipeline(pipeline,
+                       context,
+                       pipeline_context_input=None,
+                       parse_input=True):
     """Run the specified pypyr pipeline.
 
     This function runs the actual pipeline. If you are running another
@@ -265,14 +270,14 @@ def run_pipeline(pipeline,
             logger.debug("skipping context_parser")
 
         # run main steps
-        pypyr.stepsrunner.run_step_group(
+        await pypyr.stepsrunner.run_step_group(
             pipeline_definition=pipeline,
             step_group_name='steps',
             context=context)
 
         # if nothing went wrong, run on_success
         logger.debug("pipeline steps complete. Running on_success steps now.")
-        pypyr.stepsrunner.run_step_group(
+        await pypyr.stepsrunner.run_step_group(
             pipeline_definition=pipeline,
             step_group_name='on_success',
             context=context)
@@ -282,7 +287,7 @@ def run_pipeline(pipeline,
         logger.error("Something went wrong. Will now try to run on_failure.")
 
         # failure_step_group will log but swallow any errors
-        pypyr.stepsrunner.run_failure_step_group(
+        await pypyr.stepsrunner.run_failure_step_group(
             pipeline=pipeline,
             context=context)
         logger.debug("Raising original exception to caller.")

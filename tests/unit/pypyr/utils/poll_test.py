@@ -1,12 +1,17 @@
 """poll.py unit tests."""
 import logging
-from unittest.mock import call, MagicMock, patch
+from asynctest.mock import call, MagicMock, patch
+
+import pytest
+
 import pypyr.utils.poll as poll
+
+pytestmark = pytest.mark.asyncio
 
 
 # ----------------- wait_until_true -------------------------------------------
-@patch('time.sleep')
-def test_wait_until_true_with_static_decorator(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_wait_until_true_with_static_decorator(mock_time_sleep):
     """wait_until_true with static decorator"""
     mock = MagicMock()
     mock.side_effect = [
@@ -18,7 +23,7 @@ def test_wait_until_true_with_static_decorator(mock_time_sleep):
     ]
 
     @poll.wait_until_true(interval=0.01, max_attempts=10)
-    def decorate_me(arg1, arg2):
+    async def decorate_me(arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -27,15 +32,15 @@ def test_wait_until_true_with_static_decorator(mock_time_sleep):
         else:
             return False
 
-    assert decorate_me('v1', 'v2')
+    assert await decorate_me('v1', 'v2')
     assert mock.call_count == 4
     mock.assert_called_with('v1')
     assert mock_time_sleep.call_count == 3
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_wait_until_true_invoke_inline(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_wait_until_true_invoke_inline(mock_time_sleep):
     """wait_until_true with dynamic invocation."""
     mock = MagicMock()
     mock.side_effect = [
@@ -46,7 +51,7 @@ def test_wait_until_true_invoke_inline(mock_time_sleep):
         'test string 5'
     ]
 
-    def decorate_me(arg1, arg2):
+    async def decorate_me(arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -55,7 +60,7 @@ def test_wait_until_true_invoke_inline(mock_time_sleep):
         else:
             return False
 
-    assert poll.wait_until_true(interval=0.01, max_attempts=10)(
+    assert await poll.wait_until_true(interval=0.01, max_attempts=10)(
         decorate_me)('v1', 'v2')
     assert mock.call_count == 4
     mock.assert_called_with('v1')
@@ -63,8 +68,8 @@ def test_wait_until_true_invoke_inline(mock_time_sleep):
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_wait_until_true_with_timeout(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_wait_until_true_with_timeout(mock_time_sleep):
     """wait_until_true with dynamic invocation, exhaust wait attempts."""
     mock = MagicMock()
     mock.side_effect = [
@@ -81,7 +86,7 @@ def test_wait_until_true_with_timeout(mock_time_sleep):
         'test string 11',
     ]
 
-    def decorate_me(arg1, arg2):
+    async def decorate_me(arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -90,7 +95,7 @@ def test_wait_until_true_with_timeout(mock_time_sleep):
         else:
             return False
 
-    assert not poll.wait_until_true(interval=0.01, max_attempts=10)(
+    assert not await poll.wait_until_true(interval=0.01, max_attempts=10)(
         decorate_me)('v1', 'v2')
     assert mock.call_count == 10
     mock.assert_called_with('v1')
@@ -98,8 +103,8 @@ def test_wait_until_true_with_timeout(mock_time_sleep):
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_wait_until_true_once_not_found(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_wait_until_true_once_not_found(mock_time_sleep):
     """wait_until_true max_attempts 1."""
     mock = MagicMock()
     mock.side_effect = [
@@ -107,7 +112,7 @@ def test_wait_until_true_once_not_found(mock_time_sleep):
         'test string 2',
     ]
 
-    def decorate_me(arg1, arg2):
+    async def decorate_me(arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -116,14 +121,14 @@ def test_wait_until_true_once_not_found(mock_time_sleep):
         else:
             return False
 
-    assert not poll.wait_until_true(interval=0.01, max_attempts=1)(
+    assert not await poll.wait_until_true(interval=0.01, max_attempts=1)(
         decorate_me)('v1', 'v2')
     mock.assert_called_once_with('v1')
     mock_time_sleep.assert_not_called()
 
 
-@patch('time.sleep')
-def test_wait_until_true_once_found(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_wait_until_true_once_found(mock_time_sleep):
     """wait_until_true max_attempts 1."""
     mock = MagicMock()
     mock.side_effect = [
@@ -131,7 +136,7 @@ def test_wait_until_true_once_found(mock_time_sleep):
         'test string 2',
     ]
 
-    def decorate_me(arg1, arg2):
+    async def decorate_me(arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -140,18 +145,19 @@ def test_wait_until_true_once_found(mock_time_sleep):
         else:
             return False
 
-    assert poll.wait_until_true(interval=0.01, max_attempts=1)(
+    assert await poll.wait_until_true(interval=0.01, max_attempts=1)(
         decorate_me)('v1', 'v2')
     mock.assert_called_once_with('v1')
     mock_time_sleep.assert_not_called()
+
 
 # ----------------- wait_until_true -------------------------------------------
 
 # ----------------- while_until_true -------------------------------------
 
 
-@patch('time.sleep')
-def test_while_until_true_with_static_decorator(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_with_static_decorator(mock_time_sleep):
     """while_until_true with static decorator"""
     mock = MagicMock()
     mock.side_effect = [
@@ -165,7 +171,7 @@ def test_while_until_true_with_static_decorator(mock_time_sleep):
     actual_counter = 0
 
     @poll.while_until_true(interval=0.01, max_attempts=10)
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -177,15 +183,15 @@ def test_while_until_true_with_static_decorator(mock_time_sleep):
         else:
             return False
 
-    assert decorate_me('v1', 'v2')
+    assert await decorate_me('v1', 'v2')
     assert mock.call_count == 4
     mock.assert_called_with('v1')
     assert mock_time_sleep.call_count == 3
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_while_until_true_invoke_inline(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_invoke_inline(mock_time_sleep):
     """while_until_true with dynamic invocation."""
     mock = MagicMock()
     mock.side_effect = [
@@ -198,7 +204,7 @@ def test_while_until_true_invoke_inline(mock_time_sleep):
 
     actual_counter = 0
 
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -210,7 +216,7 @@ def test_while_until_true_invoke_inline(mock_time_sleep):
         else:
             return False
 
-    assert poll.while_until_true(interval=0.01, max_attempts=10)(
+    assert await poll.while_until_true(interval=0.01, max_attempts=10)(
         decorate_me)('v1', 'v2')
     assert mock.call_count == 4
     mock.assert_called_with('v1')
@@ -218,8 +224,8 @@ def test_while_until_true_invoke_inline(mock_time_sleep):
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_while_until_true_with_exhaust(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_with_exhaust(mock_time_sleep):
     """while_until_true with dynamic invocation, exhaust wait attempts."""
     mock = MagicMock()
     mock.side_effect = [
@@ -238,7 +244,7 @@ def test_while_until_true_with_exhaust(mock_time_sleep):
 
     actual_counter = 0
 
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -252,7 +258,7 @@ def test_while_until_true_with_exhaust(mock_time_sleep):
         else:
             return False
 
-    assert not poll.while_until_true(interval=0.01, max_attempts=10)(
+    assert not await poll.while_until_true(interval=0.01, max_attempts=10)(
         decorate_me)('v1', 'v2')
     assert mock.call_count == 10
     mock.assert_called_with('v1')
@@ -260,8 +266,8 @@ def test_while_until_true_with_exhaust(mock_time_sleep):
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_while_until_true_once_not_found(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_once_not_found(mock_time_sleep):
     """while_until_true max_attempts 1."""
     mock = MagicMock()
     mock.side_effect = [
@@ -271,7 +277,7 @@ def test_while_until_true_once_not_found(mock_time_sleep):
 
     actual_counter = 0
 
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -283,14 +289,14 @@ def test_while_until_true_once_not_found(mock_time_sleep):
         else:
             return False
 
-    assert not poll.while_until_true(interval=0.01, max_attempts=1)(
+    assert not await poll.while_until_true(interval=0.01, max_attempts=1)(
         decorate_me)('v1', 'v2')
     mock.assert_called_once_with('v1')
     mock_time_sleep.assert_not_called()
 
 
-@patch('time.sleep')
-def test_while_until_true_once_found(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_once_found(mock_time_sleep):
     """wait_until_true max_attempts 1."""
     mock = MagicMock()
     mock.side_effect = [
@@ -300,7 +306,7 @@ def test_while_until_true_once_found(mock_time_sleep):
 
     actual_counter = 0
 
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -312,14 +318,14 @@ def test_while_until_true_once_found(mock_time_sleep):
         else:
             return False
 
-    assert poll.while_until_true(interval=0.01, max_attempts=1)(
+    assert await poll.while_until_true(interval=0.01, max_attempts=1)(
         decorate_me)('v1', 'v2')
     mock.assert_called_once_with('v1')
     mock_time_sleep.assert_not_called()
 
 
-@patch('time.sleep')
-def test_while_until_true_no_max(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_no_max(mock_time_sleep):
     """while_until_true with dynamic invocation, infinite (max is None)."""
     mock = MagicMock()
     mock.side_effect = [
@@ -338,7 +344,7 @@ def test_while_until_true_no_max(mock_time_sleep):
 
     actual_counter = 0
 
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -354,9 +360,10 @@ def test_while_until_true_no_max(mock_time_sleep):
 
     logger = logging.getLogger('pypyr.utils.poll')
     with patch.object(logger, 'debug') as mock_logger_debug:
-        assert (poll.while_until_true(interval=0.01,
-                                      max_attempts=None)(decorate_me)('v1',
-                                                                      'v2'))
+        assert (await poll.while_until_true(interval=0.01,
+                                            max_attempts=None)(decorate_me)(
+            'v1',
+            'v2'))
     assert mock_logger_debug.mock_calls == [
         call('started'),
         call('Looping every 0.01 seconds.'),
@@ -379,8 +386,8 @@ def test_while_until_true_no_max(mock_time_sleep):
     mock_time_sleep.assert_called_with(0.01)
 
 
-@patch('time.sleep')
-def test_while_until_true_max_exhaust(mock_time_sleep):
+@patch('asyncio.sleep')
+async def test_while_until_true_max_exhaust(mock_time_sleep):
     """while_until_true with dynamic invocation, exhaust max."""
     mock = MagicMock()
     mock.side_effect = [
@@ -391,7 +398,7 @@ def test_while_until_true_max_exhaust(mock_time_sleep):
 
     actual_counter = 0
 
-    def decorate_me(counter, arg1, arg2):
+    async def decorate_me(counter, arg1, arg2):
         """Test static decorator syntax"""
         assert arg1 == 'v1'
         assert arg2 == 'v2'
@@ -404,9 +411,10 @@ def test_while_until_true_max_exhaust(mock_time_sleep):
 
     logger = logging.getLogger('pypyr.utils.poll')
     with patch.object(logger, 'debug') as mock_logger_debug:
-        assert not (poll.while_until_true(interval=0.01,
-                                          max_attempts=3)(decorate_me)('v1',
-                                                                       'v2'))
+        assert not (await poll.while_until_true(interval=0.01,
+                                                max_attempts=3)(decorate_me)(
+            'v1',
+            'v2'))
     assert mock_logger_debug.mock_calls == [
         call('started'),
         call('Looping every 0.01 seconds for 3 attempts'),

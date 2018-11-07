@@ -1,11 +1,12 @@
 """pypyr pipeline yaml definition classes - domain specific language"""
-
 import logging
 from pypyr.errors import LoopMaxExhaustedError, PipelineDefinitionError
 import pypyr.moduleloader
 import pypyr.utils.poll
 
 # use pypyr logger to ensure loglevel is set correctly
+from pypyr.utils.compat import ensure_future_result
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,7 +98,7 @@ class Step(object):
 
         logger.debug("done")
 
-    def foreach_loop(self, context):
+    async def foreach_loop(self, context):
         """Run step once for each item in foreach_items.
 
         On each iteration, the invoked step can use context['i'] to get the
@@ -123,13 +124,13 @@ class Step(object):
             context['i'] = i
             # conditional operators apply to each iteration, so might be an
             # iteration run, skips or swallows.
-            self.run_conditional_decorators(context)
+            await self.run_conditional_decorators(context)
             logger.debug(f"foreach: done step {i}")
 
         logger.debug(f"foreach decorator looped {foreach_length} times.")
         logger.debug("done")
 
-    def invoke_step(self, context):
+    async def invoke_step(self, context):
         """Invoke 'run_step' in the dynamically loaded step module.
 
         Don't invoke this from outside the Step class. Use
@@ -147,8 +148,7 @@ class Step(object):
 
         try:
             logger.debug(f"running step {self.module}")
-
-            self.module.run_step(context)
+            await ensure_future_result(self.module.run_step(context))
 
             logger.debug(f"step {self.module} done")
         except AttributeError:
@@ -156,7 +156,7 @@ class Step(object):
                          "run_step(context) function.")
             raise
 
-    def run_conditional_decorators(self, context):
+    async def run_conditional_decorators(self, context):
         """Evaluate the step decorators to decide whether to run step or not.
 
         Use pypyr.dsl.Step.run_step if you intend on executing the step the
@@ -179,7 +179,7 @@ class Step(object):
         if run_me:
             if not skip_me:
                 try:
-                    self.invoke_step(context=context)
+                    await self.invoke_step(context=context)
                 except Exception as ex_info:
                     if swallow_me:
                         logger.error(
@@ -196,7 +196,7 @@ class Step(object):
 
         logger.debug("done")
 
-    def run_foreach_or_conditional(self, context):
+    async def run_foreach_or_conditional(self, context):
         """Run the foreach sequence or the conditional evaluation.
 
         Args:
@@ -206,14 +206,14 @@ class Step(object):
         logger.debug("starting")
         # friendly reminder [] list obj (i.e empty) evals False
         if self.foreach_items:
-            self.foreach_loop(context)
+            await self.foreach_loop(context)
         else:
             # since no looping required, don't pollute output with looping info
-            self.run_conditional_decorators(context)
+            await self.run_conditional_decorators(context)
 
         logger.debug("done")
 
-    def run_step(self, context):
+    async def run_step(self, context):
         """Run a single pipeline step.
 
         Args:
@@ -225,10 +225,12 @@ class Step(object):
         self.set_step_input_context(context)
 
         if self.while_decorator:
-            self.while_decorator.while_loop(context,
-                                            self.run_foreach_or_conditional)
+            await self.while_decorator.while_loop(
+                context,
+                self.run_foreach_or_conditional
+            )
         else:
-            self.run_foreach_or_conditional(context)
+            await self.run_foreach_or_conditional(context)
 
         logger.debug("done")
 
@@ -320,7 +322,7 @@ class WhileDecorator(object):
 
         logger.debug("done")
 
-    def exec_iteration(self, counter, context, step_method):
+    async def exec_iteration(self, counter, context, step_method):
         """Run a single loop iteration.
 
         This method abides by the signature invoked by poll.while_until_true,
@@ -345,7 +347,7 @@ class WhileDecorator(object):
         context['whileCounter'] = counter
 
         logger.info(f"while: running step with counter {counter}")
-        step_method(context)
+        await ensure_future_result(step_method(context))
         logger.debug(f"while: done step {counter}")
 
         result = False
@@ -358,7 +360,7 @@ class WhileDecorator(object):
         logger.debug("done")
         return result
 
-    def while_loop(self, context, step_method):
+    async def while_loop(self, context, step_method):
         """Run step inside a while loop.
 
         Args:
@@ -408,10 +410,10 @@ class WhileDecorator(object):
                 logger.info(f"while decorator will loop until {self.stop} "
                             f"evaluates to True at {sleep}s intervals.")
 
-            if not pypyr.utils.poll.while_until_true(interval=sleep,
-                                                     max_attempts=max)(
-                    self.exec_iteration)(context=context,
-                                         step_method=step_method):
+            if not await pypyr.utils.poll.while_until_true(interval=sleep,
+                                                           max_attempts=max)(
+                self.exec_iteration)(context=context,
+                                     step_method=step_method):
                 # False means loop exhausted and stop never eval-ed True.
                 if error_on_max:
                     logger.error(f"exhausted {max} iterations of while loop, "
