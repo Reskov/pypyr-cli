@@ -821,6 +821,51 @@ def test_iter_formatted():
     assert output[3] == "this ctxvalue4 is line 4"
 
 
+def test_get_formatted_as_type_string_to_bool_eval():
+    """get_formatted_as_type returns bool no formatting"""
+    context = Context({'a': 1})
+    result = context.get_formatted_as_type('{a} == 1', out_type=bool)
+
+    assert isinstance(result, bool)
+    assert result
+
+
+def test_get_formatted_as_type_string_to_bool_eval_no_conversion():
+    """get_formatted_as_type returns bool no formatting"""
+    context = Context({'a': 1})
+    result = context.get_formatted_as_type('{a} == "1"', out_type=bool)
+
+    assert isinstance(result, bool)
+    assert not result
+
+
+def test_get_formatted_as_type_string_to_bool_eval_two_keys():
+    """get_formatted_as_type returns bool no formatting"""
+    context = Context({'a': 1, 'b': 1})
+    result = context.get_formatted_as_type('{a} == {b}', out_type=bool)
+
+    assert isinstance(result, bool)
+    assert result
+
+
+def test_get_formatted_as_type_string_to_bool_eval_and():
+    """get_formatted_as_type returns bool no formatting"""
+    context = Context({'a': 1, 'b': 1})
+    result = context.get_formatted_as_type('{a} and {b}', out_type=bool)
+
+    assert isinstance(result, bool)
+    assert result
+
+
+def test_get_formatted_as_type_string_to_bool_eval_not():
+    """get_formatted_as_type returns bool no formatting"""
+    context = Context({'a': 0, 'b': 1})
+    result = context.get_formatted_as_type('({a} or {b})', out_type=bool)
+
+    assert isinstance(result, bool)
+    assert result
+
+
 def test_get_formatted_as_type_string_to_bool_no_subst():
     """get_formatted_as_type returns bool no formatting"""
     context = Context()

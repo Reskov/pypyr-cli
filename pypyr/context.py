@@ -19,6 +19,14 @@ ContextItemInfo = namedtuple('ContextItemInfo',
 formatter = Formatter()
 
 
+class ReprFormatter(Formatter):
+    def convert_field(self, value, conversion):
+        return super().convert_field(value=value, conversion="r")
+
+
+repr_formatter = ReprFormatter()
+
+
 class Context(dict):
     """The pypyr context.
 
@@ -340,18 +348,34 @@ class Context(dict):
             value = default
 
         if isinstance(value, str):
-            result = self.get_formatted_string(value)
-            result_type = type(result)
-            if out_type is result_type:
-                # get_formatted_string result is already a string
-                return result
-            elif out_type is bool and result_type is str:
-                # casting a str to bool is always True, hence special case. If
-                # the str value is 'False'/'false', presumably user can
-                # reasonably expect a bool False response.
-                return result.lower() in ['true', '1', '1.0']
-            else:
+            if out_type is bool:
+                formatted = repr_formatter.vformat(value, args=(), kwargs=self)
+                true_str = ['true', '1', '1.0']
+
+                if formatted.lower() in true_str:
+                    return True
+                elif formatted.lower() in ['none', 'false', '0', '0.0']:
+                    return False
+
+                try:
+                    result = eval(formatted)
+                except SyntaxError:
+                    return False
+
+                if isinstance(result, str):
+                    # casting a str to bool is always True, hence special case.
+                    # If the str value is 'False'/'false', presumably user can
+                    # reasonably expect a bool False response.
+                    return result.lower() in true_str
                 return out_type(result)
+            else:
+                result = self.get_formatted_string(value)
+                result_type = type(result)
+                if out_type is result_type:
+                    # get_formatted_string result is already a string
+                    return result
+                else:
+                    return out_type(result)
         else:
             return out_type(value)
 
